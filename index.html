@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <title>Satelite Pro | III Unidade</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+                    colors: { satelite: { dark: '#0f172a', accent: '#fbbf24', primary: '#3b82f6', surface: '#f8fafc' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .fade-in { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .sticky-header { position: sticky; top: 0; z-index: 100; background: #0f172a; }
+    </style>
+</head>
+<body class="antialiased text-slate-900">
+
+<div class="w-full max-w-md mx-auto min-h-screen bg-satelite-surface flex flex-col shadow-2xl">
+    
+    <!-- Header Corrigido para Mobile -->
+    <header class="sticky-header text-white p-5 rounded-b-[2rem] shadow-lg">
+        <div class="flex justify-between items-center mb-5">
+            <div>
+                <h1 class="text-xl font-extrabold tracking-tight">Satelite <span class="text-satelite-accent">Pro</span></h1>
+                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">III Unidade - 2026</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="exportData()" class="p-2 text-slate-400"><i class="fa-solid fa-download"></i></button>
+                <button onclick="goToToday()" class="bg-satelite-accent text-satelite-dark px-3 py-1.5 rounded-xl font-bold text-xs">HOJE</button>
+            </div>
+        </div>
+
+        <select id="turmaFilter" onchange="updateUI()" class="w-full bg-slate-800 text-white text-sm rounded-xl p-3 border border-slate-700 outline-none appearance-none">
+            <option value="TODAS">📅 Ver Tudo (Geral)</option>
+            <option value="8º AM">8º AM</option>
+            <option value="8º AV">8º AV</option>
+            <option value="8º BV">8º BV</option>
+            <option value="1º AI">1º AI</option>
+            <option value="1º BI">1º BI</option>
+            <option value="2º AM">2º AM</option>
+            <option value="2º BM">2º BM</option>
+            <option value="9º AV">9º AV</option>
+        </select>
+    </header>
+
+    <!-- Calendário -->
+    <div class="px-4 py-6 bg-white rounded-b-[2rem] shadow-sm">
+        <div class="flex overflow-x-auto gap-2 no-scrollbar mb-5 px-1" id="monthTabs"></div>
+        <div class="calendar-grid text-center text-[10px] font-black text-slate-300 mb-2">
+            <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
+        </div>
+        <div id="calendarGrid" class="calendar-grid px-1"></div>
+    </div>
+
+    <!-- Lista de Aulas / Cronograma -->
+    <main class="flex-1 px-5 py-6">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-lg font-extrabold text-slate-800" id="detailFullDate">---</h2>
+            <span id="dayBadge" class="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase">---</span>
+        </div>
+        <div id="eventList" class="pb-24 space-y-4"></div>
+    </main>
+</div>
+
+<!-- Modal de Nota (Compacto) -->
+<div id="noteModal" class="hidden fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-6 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-xs rounded-[2rem] p-6">
+        <h3 class="font-bold mb-4 text-slate-800 text-sm">Adicionar Nota para esta Aula:</h3>
+        <textarea id="noteInput" class="w-full h-24 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Passar atividade página 42..."></textarea>
+        <div class="flex gap-2 mt-4">
+            <button onclick="closeNote()" class="flex-1 py-2 text-slate-400 text-xs font-bold">CANCELAR</button>
+            <button onclick="saveNote()" class="flex-1 py-2 bg-satelite-dark text-white rounded-xl text-xs font-bold">SALVAR</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const weeklyPattern = {
+        1: ["8º AM"], 2: ["1º AI", "1º BI", "8º AM", "8º AV", "8º BV", "9º AV"], 
+        4: ["2º AM", "2º BM", "8º AM", "8º AV", "8º BV", "9º AV"]
+    };
+
+    // Helper para gerar intervalos de datas
+    function getRange(start, end, title, type = 'normal') {
+        let dates = [];
+        let curr = new Date(start + 'T12:00:00');
+        let stop = new Date(end + 'T12:00:00');
+        while(curr <= stop) {
+            dates.push({ date: curr.toISOString().split('T')[0], title, type, turma: 'GERAL' });
+            curr.setDate(curr.getDate() + 1);
+        }
+        return dates;
+    }
+
+    const manualEvents = [
+        ...getRange('2026-09-01', '2026-09-11', 'Regime de Progressão Parcial (RPP)', 'atencao'),
+        { date: '2026-09-07', title: 'Independência do Brasil (Feriado)', type: 'feriado', turma: 'GERAL' },
+        { date: '2026-09-19', title: 'Sábado Letivo 📝', type: 'aula', turma: 'GERAL' },
+        ...getRange('2026-09-29', '2026-10-01', 'Avaliação Plurall', 'atencao'),
+        { date: '2026-10-12', title: 'N. Sra. de Aparecida (Feriado)', type: 'feriado', turma: 'GERAL' },
+        { date: '2026-10-15', title: 'Dia do Professor (Feriado)', type: 'feriado', turma: 'GERAL' },
+        { date: '2026-10-17', title: 'Sábado Letivo 📝', type: 'aula', turma: 'GERAL' },
+        { date: '2026-10-28', title: 'Dia do Servidor Público (Feriado)', type: 'feriado', turma: 'GERAL' },
+        { date: '2026-11-02', title: 'Dia de Finados (Feriado)', type: 'feriado', turma: 'GERAL' },
+        { date: '2026-11-05', title: 'Culminância do Projeto', type: 'destaque', turma: 'GERAL' },
+        ...getRange('2026-11-09', '2026-11-19', 'Prova Sabe', 'atencao'),
+        { date: '2026-11-15', title: 'Proclamação da República (Feriado)', type: 'feriado', turma: 'GERAL' },
+        ...getRange('2026-11-16', '2026-11-27', 'Renovação de Matrícula', 'normal'),
+        { date: '2026-11-20', title: 'Dia da Consciência Negra (Feriado)', type: 'feriado', turma: 'GERAL' },
+        { date: '2026-12-01', title: 'Simulado Humanas (7h30 / 13h30)', type: 'atencao', turma: 'GERAL' },
+        { date: '2026-12-02', title: 'Simulado Linguagens (7h30 / 13h30)', type: 'atencao', turma: 'GERAL' },
+        { date: '2026-12-03', title: 'Simulado Natureza/Mat (7h30 / 13h30)', type: 'atencao', turma: 'GERAL' },
+        { date: '2026-12-04', title: 'Formatura 🎓', type: 'destaque', turma: 'GERAL' },
+        ...getRange('2026-12-10', '2026-12-11', 'RECUPERAÇÃO (Sala de Projeto)', 'atencao'),
+        ...getRange('2026-12-14', '2026-12-15', 'CONSELHO DE CLASSE', 'atencao'),
+        { date: '2026-12-16', title: 'Fim da III Unidade 🎉', type: 'destaque', turma: 'GERAL' },
+        { date: '2026-12-22', title: 'ENTREGA DO BOLETIM', type: 'destaque', turma: 'GERAL' }
+    ];
+
+    let schedule = [];
+    let completed = JSON.parse(localStorage.getItem('sat_done')) || [];
+    let notes = JSON.parse(localStorage.getItem('sat_notes')) || {};
+    let currentMonth = new Date().getMonth();
+    let selectedDate = new Date().toISOString().split('T')[0];
+    let noteTargetId = null;
+
+    function buildSchedule() {
+        const start = new Date(2026, 7, 31);
+        const end = new Date(2026, 11, 23);
+        let curr = new Date(start);
+        while(curr <= end) {
+            const dStr = curr.toISOString().split('T')[0];
+            const dow = curr.getDay();
+            const feriadosDoDia = manualEvents.filter(e => e.date === dStr);
+            
+            if(feriadosDoDia.length > 0) {
+                feriadosDoDia.forEach(f => schedule.push(f));
+            }
+            
+            if(weeklyPattern[dow]) {
+                weeklyPattern[dow].forEach(t => {
+                    schedule.push({ date: dStr, turma: t, title: 'Aula Regular', type: 'aula' });
+                });
+            }
+            curr.setDate(curr.getDate() + 1);
+        }
+    }
+
+    function updateUI() {
+        renderMonths();
+        renderCalendar();
+        renderList();
+    }
+
+    function renderMonths() {
+        const months = [{n:'Set',i:8},{n:'Out',i:9},{n:'Nov',i:10},{n:'Dez',i:11}];
+        document.getElementById('monthTabs').innerHTML = months.map(m => `
+            <button onclick="currentMonth=${m.i};updateUI()" class="px-5 py-2 rounded-xl font-bold text-xs transition-all
+                ${currentMonth === m.i ? 'bg-satelite-dark text-white' : 'bg-slate-100 text-slate-400'}">${m.n}</button>
+        `).join('');
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+        const first = new Date(2026, currentMonth, 1).getDay();
+        const total = new Date(2026, currentMonth + 1, 0).getDate();
+        const filter = document.getElementById('turmaFilter').value;
+
+        for(let i=0; i<first; i++) grid.appendChild(document.createElement('div'));
+
+        for(let d=1; d<=total; d++) {
+            const dStr = `2026-${(currentMonth+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+            const hasEv = schedule.some(s => s.date === dStr && (filter === 'TODAS' || s.turma === filter || s.turma === 'GERAL'));
+            const isSel = dStr === selectedDate;
+
+            const el = document.createElement('div');
+            el.className = `h-10 flex flex-col items-center justify-center rounded-xl cursor-pointer text-xs font-bold
+                ${isSel ? 'bg-satelite-primary text-white scale-110 shadow-md' : 'text-slate-600 hover:bg-slate-50'}`;
+            el.onclick = () => { selectedDate = dStr; updateUI(); };
+            el.innerHTML = `<span>${d}</span>${hasEv ? '<div class="w-1 h-1 bg-current opacity-50 rounded-full mt-0.5"></div>' : ''}`;
+            grid.appendChild(el);
+        }
+    }
+
+    function renderList() {
+        const filter = document.getElementById('turmaFilter').value;
+        const events = schedule.filter(s => s.date === selectedDate && (filter === 'TODAS' || s.turma === filter || s.turma === 'GERAL'));
+        const dObj = new Date(selectedDate + 'T12:00:00');
+        
+        document.getElementById('detailFullDate').innerText = dObj.toLocaleDateString('pt-BR', {day:'numeric', month:'long'});
+        document.getElementById('dayBadge').innerText = dObj.toLocaleDateString('pt-BR', {weekday:'short'});
+
+        const container = document.getElementById('eventList');
+        container.innerHTML = events.length ? '' : `<div class="py-10 text-center text-slate-300 text-sm">Sem eventos programados.</div>`;
+
+        events.forEach((ev, idx) => {
+            const id = `${ev.date}-${ev.turma}-${idx}`;
+            const isDone = completed.includes(id);
+            const note = notes[id] || '';
+
+            const card = document.createElement('div');
+            card.className = `bg-white p-4 rounded-2xl border border-slate-100 shadow-sm fade-in ${isDone ? 'opacity-50' : ''}`;
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-500">${ev.turma}</span>
+                    <button onclick="toggleDone('${id}')" class="text-lg ${isDone ? 'text-green-500' : 'text-slate-200'}">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </button>
+                </div>
+                <h3 class="font-bold text-slate-800 text-sm leading-tight">${ev.title}</h3>
+                
+                <!-- NOTA EXIBIDA PEQUENA NO CARD -->
+                ${note ? `<div class="mt-2 p-2 bg-yellow-50 border-l-2 border-yellow-400 text-[10px] text-yellow-700 italic">
+                    <i class="fa-solid fa-note-sticky mr-1"></i> ${note}
+                </div>` : ''}
+
+                <button onclick="openNote('${id}')" class="mt-3 text-[9px] font-bold text-blue-500 uppercase tracking-tighter">
+                    <i class="fa-solid fa-pen"></i> ${note ? 'Editar nota' : 'Add nota'}
+                </button>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function toggleDone(id) {
+        completed = completed.includes(id) ? completed.filter(i => i !== id) : [...completed, id];
+        localStorage.setItem('sat_done', JSON.stringify(completed));
+        renderList();
+    }
+
+    function openNote(id) {
+        noteTargetId = id;
+        document.getElementById('noteInput').value = notes[id] || '';
+        document.getElementById('noteModal').classList.remove('hidden');
+    }
+
+    function saveNote() {
+        const val = document.getElementById('noteInput').value.trim();
+        if(val) notes[noteTargetId] = val; else delete notes[noteTargetId];
+        localStorage.setItem('sat_notes', JSON.stringify(notes));
+        closeNote();
+        updateUI();
+    }
+
+    function closeNote() { document.getElementById('noteModal').classList.add('hidden'); }
+    function goToToday() {
+        const t = new Date().toISOString().split('T')[0];
+        selectedDate = t; currentMonth = new Date().getMonth(); updateUI();
+    }
+    function exportData() {
+        const blob = new Blob([JSON.stringify({completed, notes})], {type:'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'backup_satelite.json'; a.click();
+    }
+
+    window.onload = () => { buildSchedule(); updateUI(); };
+</script>
+</body>
+</html>
