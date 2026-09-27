@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Satelite Pro | Planner Docente</title>
+    
+    <!-- Bibliotecas Externas -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+                    colors: {
+                        satelite: {
+                            dark: '#0f172a',
+                            accent: '#fbbf24',
+                            primary: '#3b82f6',
+                            surface: '#f8fafc'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0f172a; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        .glass-header { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="antialiased text-slate-900 flex justify-center">
+
+<div class="w-full max-w-md bg-satelite-surface min-h-screen shadow-2xl relative flex flex-col overflow-hidden">
+    
+    <!-- Status Bar Background -->
+    <div class="h-12 bg-satelite-dark w-full sticky top-0 z-[60]"></div>
+
+    <!-- Header -->
+    <header class="glass-header text-white p-6 sticky top-0 z-50 rounded-b-[2rem] shadow-2xl -mt-12">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-extrabold tracking-tight">Satelite <span class="text-satelite-accent text-3xl">.</span></h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Planner Profissional</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="exportData()" class="p-2.5 rounded-full bg-slate-800 text-slate-400 hover:text-white transition-colors" title="Exportar Backup">
+                    <i class="fa-solid fa-file-export"></i>
+                </button>
+                <button onclick="goToToday()" class="bg-satelite-accent text-satelite-dark px-4 py-2 rounded-2xl font-bold text-xs shadow-lg active:scale-95 transition-all">
+                    HOJE
+                </button>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <div class="relative">
+                <label class="text-[9px] font-black text-slate-500 ml-1 uppercase mb-1 block">Filtro de Turma</label>
+                <select id="turmaFilter" onchange="updateUI()" class="w-full bg-slate-900/50 text-white text-sm rounded-2xl p-4 border border-slate-700/50 focus:ring-2 focus:ring-satelite-accent outline-none appearance-none cursor-pointer">
+                    <option value="TODAS">📅 Todas as Turmas</option>
+                    <optgroup label="Ensino Médio">
+                        <option value="1º AI">1º AI</option>
+                        <option value="1º BI">1º BI</option>
+                        <option value="2º AM">2º AM</option>
+                        <option value="2º BM">2º BM</option>
+                    </optgroup>
+                    <optgroup label="Fundamental">
+                        <option value="8º AM">8º AM</option>
+                        <option value="8º AV">8º AV</option>
+                        <option value="8º BV">8º BV</option>
+                        <option value="9º AV">9º AV</option>
+                    </optgroup>
+                </select>
+                <i class="fa-solid fa-sliders absolute right-4 bottom-4 text-slate-500 pointer-events-none"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Calendar Section -->
+    <div class="px-4 pt-8 pb-4 bg-white -mt-6 rounded-t-[2.5rem] relative z-40 shadow-sm">
+        <div class="flex overflow-x-auto gap-3 no-scrollbar mb-6 px-1" id="monthTabs"></div>
+        <div class="calendar-grid text-center text-[10px] uppercase font-black text-slate-400 mb-3 px-2">
+            <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
+        </div>
+        <div id="calendarGrid" class="calendar-grid min-h-[240px] px-1"></div>
+    </div>
+
+    <!-- Timeline / Agenda -->
+    <main class="flex-1 px-5 py-8 space-y-6 bg-satelite-surface">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight" id="detailFullDate">---</h2>
+                <p class="text-xs font-bold text-satelite-primary uppercase tracking-wider" id="detailStatus">Buscando aulas...</p>
+            </div>
+            <div id="dayBadge" class="h-12 w-12 rounded-2xl bg-white shadow-sm border border-slate-100 flex flex-col items-center justify-center">
+                <span class="text-[10px] font-bold text-slate-400 uppercase" id="badgeWeekDay">---</span>
+                <span class="text-lg font-black text-slate-800" id="badgeDayNum">00</span>
+            </div>
+        </div>
+
+        <div id="eventList" class="pb-32 space-y-4"></div>
+    </main>
+
+    <!-- Bottom Actions -->
+    <div class="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-satelite-surface via-satelite-surface to-transparent z-[50] safe-bottom">
+        <div class="max-w-md mx-auto flex justify-center">
+            <button onclick="document.getElementById('importInput').click()" class="bg-white text-slate-600 px-6 py-4 rounded-[2rem] shadow-xl border border-slate-100 font-bold text-sm flex items-center gap-3 active:scale-95 transition-all">
+                <i class="fa-solid fa-cloud-arrow-up text-satelite-primary"></i>
+                Restaurar Backup
+            </button>
+            <input type="file" id="importInput" class="hidden" accept=".json" onchange="importData(event)">
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Notas -->
+<div id="noteModal" class="hidden fixed inset-0 bg-satelite-dark/80 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 backdrop-blur-md">
+    <div class="bg-white w-full max-w-md rounded-t-[3rem] sm:rounded-[3rem] p-8 shadow-2xl transition-all translate-y-0">
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-8 sm:hidden"></div>
+        <div class="flex items-center gap-4 mb-6">
+            <div class="w-12 h-12 rounded-2xl bg-satelite-accent/20 text-satelite-accent flex items-center justify-center">
+                <i class="fa-solid fa-pen-nib text-xl"></i>
+            </div>
+            <div>
+                <h3 class="font-black text-xl text-slate-800">Anotações da Aula</h3>
+                <p class="text-xs text-slate-400 font-bold uppercase" id="noteModalTurma">Turma</p>
+            </div>
+        </div>
+        <textarea id="noteInput" class="w-full h-48 p-6 bg-slate-50 border-2 border-slate-100 rounded-[2rem] focus:border-satelite-primary outline-none text-slate-700 text-base leading-relaxed transition-all" placeholder="O que aconteceu nesta aula? Qual o próximo passo?"></textarea>
+        <div class="flex gap-3 mt-8">
+            <button onclick="closeNote()" class="flex-1 py-5 text-slate-400 font-bold hover:text-slate-600 transition-colors">FECHAR</button>
+            <button onclick="saveNote()" class="flex-[2] py-5 bg-satelite-dark text-white rounded-[1.5rem] font-black shadow-xl shadow-slate-200 active:scale-95 transition-all">SALVAR NOTA</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- DATABASE & LOGIC ---
+    
+    const weeklyPattern = {
+        1: ["8º AM"], 
+        2: ["1º AI", "1º BI", "8º AM", "8º AV", "8º BV", "9º AV"], 
+        4: ["2º AM", "2º BM", "8º AM", "8º AV", "8º BV", "9º AV"]
+    };
+
+    const calendarEvents = [
+        { date: '2026-09-07', title: 'Independência do Brasil', type: 'feriado' },
+        { date: '2026-10-12', title: 'Nossa Sra. Aparecida', type: 'feriado' },
+        { date: '2026-10-15', title: 'Dia do Professor 🍎', type: 'feriado' },
+        { date: '2026-11-02', title: 'Finados', type: 'feriado' },
+        { date: '2026-11-15', title: 'Proclamação da República', type: 'feriado' },
+        { date: '2026-11-20', title: 'Consciência Negra', type: 'feriado' },
+        { date: '2026-12-04', title: 'Formatura Colégio Satélite', type: 'destaque' },
+        { date: '2026-12-16', title: 'Encerramento III Unidade', type: 'destaque' }
+    ];
+
+    const specificContent = {
+        '2026-08-31-8º AM': 'Leitura e Pontuação – Testamento',
+        '2026-09-01-1º BI': 'Possíveis temas e avaliação da unid 3',
+        '2026-09-08-1º AI': 'Orientações trabalho (USAR SLIDE)',
+        '2026-09-10-2º AM': 'Orientações trabalho (USAR SLIDE)',
+        '2026-09-15-8º AV': 'Correção de parágrafo c/ justaposição',
+        '2026-09-22-9º AV': 'Truncamento Sintático'
+    };
+
+    let schedule = [];
+    let completed = JSON.parse(localStorage.getItem('sat_done')) || [];
+    let notes = JSON.parse(localStorage.getItem('sat_notes')) || {};
+    let currentMonth = new Date().getMonth() < 8 ? 8 : new Date().getMonth();
+    let selectedDate = new Date().toISOString().split('T')[0];
+    let noteId = null;
+
+    function buildSchedule() {
+        const start = new Date(2026, 7, 31);
+        const end = new Date(2026, 11, 22);
+        let curr = new Date(start);
+
+        while(curr <= end) {
+            const dStr = curr.toISOString().split('T')[0];
+            const dow = curr.getDay();
+            const feriado = calendarEvents.find(e => e.date === dStr);
+
+            if(feriado) {
+                schedule.push({...feriado, turma: 'GERAL'});
+            } else if(weeklyPattern[dow]) {
+                weeklyPattern[dow].forEach(t => {
+                    const key = `${dStr}-${t}`;
+                    schedule.push({
+                        date: dStr, turma: t, type: 'aula',
+                        title: specificContent[key] || 'Aula de Língua Portuguesa'
+                    });
+                });
+            }
+            curr.setDate(curr.getDate() + 1);
+        }
+    }
+
+    // --- UI FUNCTIONS ---
+
+    function updateUI() {
+        renderMonthTabs();
+        renderCalendar();
+        renderList();
+    }
+
+    function renderMonthTabs() {
+        const months = [{n:'Set', i:8},{n:'Out', i:9},{n:'Nov', i:10},{n:'Dez', i:11}];
+        document.getElementById('monthTabs').innerHTML = months.map(m => `
+            <button onclick="currentMonth=${m.i};updateUI()" class="px-7 py-3 rounded-2xl font-extrabold text-sm transition-all
+                ${currentMonth === m.i ? 'bg-satelite-dark text-white shadow-xl scale-105' : 'bg-white text-slate-300 border border-slate-100'}">
+                ${m.n}
+            </button>
+        `).join('');
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+        const first = new Date(2026, currentMonth, 1).getDay();
+        const total = new Date(2026, currentMonth + 1, 0).getDate();
+        const filter = document.getElementById('turmaFilter').value;
+
+        for(let i=0; i<first; i++) grid.appendChild(document.createElement('div'));
+
+        for(let d=1; d<=total; d++) {
+            const dStr = `2026-${(currentMonth+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+            const hasAula = schedule.some(s => s.date === dStr && (filter === 'TODAS' || s.turma === filter || s.turma === 'GERAL'));
+            const isSel = dStr === selectedDate;
+
+            const el = document.createElement('div');
+            el.className = `h-12 flex flex-col items-center justify-center rounded-2xl cursor-pointer transition-all relative font-bold text-sm
+                ${isSel ? 'bg-satelite-primary text-white shadow-lg shadow-blue-200 z-10 scale-110' : 'text-slate-600 hover:bg-slate-50'}`;
+            el.onclick = () => { selectedDate = dStr; updateUI(); };
+            el.innerHTML = `<span>${d}</span>${hasAula ? '<div class="w-1 h-1 bg-current opacity-40 rounded-full mt-0.5"></div>' : ''}`;
+            grid.appendChild(el);
+        }
+    }
+
+    function renderList() {
+        const filter = document.getElementById('turmaFilter').value;
+        const events = schedule.filter(s => s.date === selectedDate && (filter === 'TODAS' || s.turma === filter || s.turma === 'GERAL'));
+        
+        const dObj = new Date(selectedDate + 'T12:00:00');
+        document.getElementById('detailFullDate').innerText = dObj.toLocaleDateString('pt-BR', {day:'numeric', month:'long'});
+        document.getElementById('detailStatus').innerText = events.length ? `${events.length} atividades previstas` : 'Livre de aulas';
+        document.getElementById('badgeWeekDay').innerText = dObj.toLocaleDateString('pt-BR', {weekday:'short'});
+        document.getElementById('badgeDayNum').innerText = dObj.getDate();
+
+        const container = document.getElementById('eventList');
+        container.innerHTML = events.length ? '' : `<div class="py-20 text-center opacity-20 font-black italic">SEM AULAS REGISTRADAS</div>`;
+
+        events.forEach(ev => {
+            const id = `${ev.date}-${ev.turma}`;
+            const isDone = completed.includes(id);
+            const hasNote = notes[id];
+
+            const card = document.createElement('div');
+            card.className = `bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm fade-in relative transition-all ${isDone ? 'opacity-50 grayscale' : ''}`;
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-4">
+                    <span class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${ev.type === 'feriado' ? 'bg-red-50 text-red-500' : 'bg-slate-100 text-slate-500'}">
+                        ${ev.turma}
+                    </span>
+                    <button onclick="toggleDone('${id}')" class="w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${isDone ? 'bg-green-500 text-white shadow-lg' : 'bg-slate-50 text-slate-200'}">
+                        <i class="fa-solid fa-check"></i>
+                    </button>
+                </div>
+                <h3 class="text-lg font-extrabold text-slate-800 leading-tight mb-4">${ev.title}</h3>
+                <div class="flex gap-2">
+                    <button onclick="openNote('${id}', '${ev.turma}')" class="flex-1 bg-satelite-surface py-3 rounded-2xl text-[10px] font-black text-slate-400 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-comment-dots ${hasNote ? 'text-satelite-primary' : ''}"></i>
+                        ${hasNote ? 'VER ANOTAÇÃO' : 'ADD NOTA'}
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // --- DATA HANDLING ---
+
+    function toggleDone(id) {
+        completed = completed.includes(id) ? completed.filter(i => i !== id) : [...completed, id];
+        localStorage.setItem('sat_done', JSON.stringify(completed));
+        renderList();
+    }
+
+    function openNote(id, turma) {
+        noteId = id;
+        document.getElementById('noteModalTurma').innerText = turma;
+        document.getElementById('noteInput').value = notes[id] || '';
+        document.getElementById('noteModal').classList.remove('hidden');
+    }
+
+    function saveNote() {
+        const val = document.getElementById('noteInput').value.trim();
+        if(val) notes[noteId] = val; else delete notes[noteId];
+        localStorage.setItem('sat_notes', JSON.stringify(notes));
+        document.getElementById('noteModal').classList.add('hidden');
+        renderList();
+    }
+
+    function closeNote() { document.getElementById('noteModal').classList.add('hidden'); }
+
+    function goToToday() {
+        const today = new Date().toISOString().split('T')[0];
+        selectedDate = today;
+        currentMonth = new Date().getMonth();
+        updateUI();
+    }
+
+    function exportData() {
+        const data = { completed, notes, timestamp: new Date().toISOString() };
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `backup_satelite_${new Date().toLocaleDateString()}.json`;
+        a.click();
+    }
+
+    function importData(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const data = JSON.parse(ev.target.result);
+            if(data.completed) {
+                completed = data.completed;
+                notes = data.notes;
+                localStorage.setItem('sat_done', JSON.stringify(completed));
+                localStorage.setItem('sat_notes', JSON.stringify(notes));
+                alert("Backup restaurado com sucesso!");
+                updateUI();
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    window.onload = () => { buildSchedule(); updateUI(); };
+</script>
+</body>
+</html>
