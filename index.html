@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0f172a">
-    <title>Satelite Pro | III Unidade</title>
+    <title>Satelite Pro | Planner Interativo</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -24,18 +24,26 @@
         body { background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        
+        /* Animações CSS */
         .fade-in { animation: fadeIn 0.2s ease-out; }
+        .slide-left-enter { animation: slideLeftEnter 0.25s ease-out forwards; }
+        .slide-right-enter { animation: slideRightEnter 0.25s ease-out forwards; }
+        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideLeftEnter { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideRightEnter { from { transform: translateX(-40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
         .sticky-header { position: sticky; top: 0; z-index: 100; background: #0f172a; }
     </style>
 </head>
-<body class="antialiased text-slate-900">
+<body class="antialiased text-slate-900 overflow-x-hidden">
 
-<div class="w-full max-w-md mx-auto min-h-screen bg-satelite-surface flex flex-col shadow-2xl">
+<div class="w-full max-w-md mx-auto min-h-screen bg-satelite-surface flex flex-col shadow-2xl relative">
     
-    <!-- Header Corrigido para Mobile -->
+    <!-- Header -->
     <header class="sticky-header text-white p-5 rounded-b-[2rem] shadow-lg">
-        <div class="flex justify-between items-center mb-5">
+        <div class="flex justify-between items-center mb-4">
             <div>
                 <h1 class="text-xl font-extrabold tracking-tight">Satelite <span class="text-satelite-accent">Pro</span></h1>
                 <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">III Unidade - 2026</p>
@@ -46,29 +54,52 @@
             </div>
         </div>
 
-        <select id="turmaFilter" onchange="updateUI()" class="w-full bg-slate-800 text-white text-sm rounded-xl p-3 border border-slate-700 outline-none appearance-none">
-            <option value="TODAS">📅 Ver Tudo (Geral)</option>
-            <option value="8º AM">8º AM</option>
-            <option value="8º AV">8º AV</option>
-            <option value="8º BV">8º BV</option>
-            <option value="1º AI">1º AI</option>
-            <option value="1º BI">1º BI</option>
-            <option value="2º AM">2º AM</option>
-            <option value="2º BM">2º BM</option>
-            <option value="9º AV">9º AV</option>
-        </select>
+        <!-- Filtro por Turma -->
+        <div class="relative mb-3">
+            <select id="turmaFilter" onchange="updateUI()" class="w-full bg-slate-800 text-white text-sm font-semibold rounded-xl p-3 border border-slate-700 outline-none appearance-none">
+                <option value="TODAS">📚 Filtro: Mostrar Todas as Turmas</option>
+                <option value="8º AM">8º AM</option>
+                <option value="8º AV">8º AV</option>
+                <option value="8º BV">8º BV</option>
+                <option value="1º AI">1º AI</option>
+                <option value="1º BI">1º BI</option>
+                <option value="2º AM">2º AM</option>
+                <option value="2º BM">2º BM</option>
+                <option value="9º AV">9º AV</option>
+            </select>
+            <i class="fa-solid fa-filter absolute right-4 top-3.5 text-slate-400 pointer-events-none text-xs"></i>
+        </div>
+
+        <!-- Toggle Visão: Semana / Mês -->
+        <div class="flex bg-slate-800 p-1 rounded-xl">
+            <button onclick="setViewMode('week')" id="btnWeek" class="flex-1 text-xs font-bold py-2 rounded-lg text-slate-400 transition-all">Semana</button>
+            <button onclick="setViewMode('month')" id="btnMonth" class="flex-1 text-xs font-bold py-2 rounded-lg text-white bg-slate-700 shadow transition-all">Mês</button>
+        </div>
     </header>
 
-    <!-- Calendário -->
-    <div class="px-4 py-6 bg-white rounded-b-[2rem] shadow-sm">
-        <div class="flex overflow-x-auto gap-2 no-scrollbar mb-5 px-1" id="monthTabs"></div>
+    <!-- Área do Calendário Interativo -->
+    <div class="px-4 py-6 bg-white rounded-b-[2rem] shadow-sm overflow-hidden" 
+         ontouchstart="handleTouchStart(event)" 
+         ontouchend="handleTouchEnd(event)">
+        
+        <div class="flex overflow-x-auto gap-2 no-scrollbar mb-4 px-1 transition-all" id="monthTabs"></div>
+        
         <div class="calendar-grid text-center text-[10px] font-black text-slate-300 mb-2">
             <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
         </div>
-        <div id="calendarGrid" class="calendar-grid px-1"></div>
+        
+        <!-- O Grid recebe a classe de animação (slide) -->
+        <div class="transition-all duration-300 min-h-[40px]">
+            <div id="calendarGrid" class="calendar-grid px-1"></div>
+        </div>
+
+        <!-- Dica de swipe -->
+        <div class="text-center mt-3 text-[9px] text-slate-300 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+            <i class="fa-solid fa-arrows-left-right opacity-50"></i> Deslize para mudar <span id="swipeHintLabel">o mês</span>
+        </div>
     </div>
 
-    <!-- Lista de Aulas / Cronograma -->
+    <!-- Lista de Aulas -->
     <main class="flex-1 px-5 py-6">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-lg font-extrabold text-slate-800" id="detailFullDate">---</h2>
@@ -78,11 +109,11 @@
     </main>
 </div>
 
-<!-- Modal de Nota (Compacto) -->
+<!-- Modal de Nota -->
 <div id="noteModal" class="hidden fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-6 backdrop-blur-sm">
     <div class="bg-white w-full max-w-xs rounded-[2rem] p-6">
-        <h3 class="font-bold mb-4 text-slate-800 text-sm">Adicionar Nota para esta Aula:</h3>
-        <textarea id="noteInput" class="w-full h-24 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Passar atividade página 42..."></textarea>
+        <h3 class="font-bold mb-4 text-slate-800 text-sm">Anotações da Aula:</h3>
+        <textarea id="noteInput" class="w-full h-36 p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed" placeholder="Adicione observações aqui..."></textarea>
         <div class="flex gap-2 mt-4">
             <button onclick="closeNote()" class="flex-1 py-2 text-slate-400 text-xs font-bold">CANCELAR</button>
             <button onclick="saveNote()" class="flex-1 py-2 bg-satelite-dark text-white rounded-xl text-xs font-bold">SALVAR</button>
@@ -96,7 +127,71 @@
         4: ["2º AM", "2º BM", "8º AM", "8º AV", "8º BV", "9º AV"]
     };
 
-    // Helper para gerar intervalos de datas
+    // Dados (Mantidos os PDFs)
+    const predefinedData = {
+        '2026-08-31-8º AM': { t: 'Leitura e Pontuação – Testamento', n: 'Atividade em grupos - imprimir' },
+        '2026-09-01-1º BI': { t: 'Possíveis temas e avaliação da unid 3', n: '' },
+        '2026-09-01-8º AM': { t: 'Apresentação das versões - Notas', n: 'No quadro pelas equipes' },
+        '2026-09-01-1º AI': { t: 'Possíveis temas e avaliação da unid 3', n: '' },
+        '2026-09-01-9º AV': { t: 'Divulgação das médias', n: '' },
+        '2026-09-01-8º AV': { t: 'Leitura e Pontuação – Testamento', n: 'Atividade em grupos - imprimir' },
+        '2026-09-01-8º BV': { t: 'Leitura e Pontuação – Testamento', n: 'Atividade em grupos - imprimir' },
+        '2026-09-03-8º AM': { t: 'Justaposição', n: '' },
+        '2026-09-03-2º BM': { t: 'Balanço da unidade, feedback e notas', n: '' },
+        '2026-09-03-2º AM': { t: 'Balanço da unidade, feedback e notas', n: '' },
+        '2026-09-03-8º AV': { t: 'Justaposição', n: '' },
+        '2026-09-03-8º BV': { t: 'Justaposição', n: '' },
+        '2026-09-03-9º AV': { t: 'Projeto da unidade III', n: '' },
+        '2026-09-08-1º BI': { t: 'Orientações para o trabalho da unid.', n: 'SLIDE' },
+        '2026-09-08-8º AM': { t: 'Justaposição e Truncamento', n: '' },
+        '2026-09-08-1º AI': { t: 'Orientações para o trabalho da unid.', n: 'SLIDE' },
+        '2026-09-08-9º AV': { t: 'Orientações Projeto', n: '' },
+        '2026-09-08-8º AV': { t: 'Justaposição', n: '' },
+        '2026-09-08-8º BV': { t: 'Justaposição', n: '' },
+        '2026-09-10-8º AM': { t: 'Justaposição Exercícios', n: '' },
+        '2026-09-10-2º BM': { t: 'Orientações para o trabalho da unid.', n: 'SLIDE' },
+        '2026-09-10-2º AM': { t: 'Orientações para o trabalho da unid.', n: 'SLIDE' },
+        '2026-09-10-8º AV': { t: 'Justaposição Exercícios', n: '' },
+        '2026-09-10-8º BV': { t: 'Justaposição Exercícios', n: '' },
+        '2026-09-10-9º AV': { t: 'Lista de problemas', n: 'Em grupos' },
+        '2026-09-15-1º BI': { t: 'Competência V – 4 Elementos - Teoria', n: 'Pegar slide pronto' },
+        '2026-09-15-1º AI': { t: 'Competência V – 4 Elementos - Teoria', n: 'Pegar slide pronto' },
+        '2026-09-22-1º BI': { t: 'Competência V – 4 Elementos – Ativid', n: 'Pegar slide pronto' },
+        '2026-09-22-1º AI': { t: 'Competência V – 4 Elementos – Ativid', n: 'Pegar slide pronto' },
+        '2026-09-29-9º AV': { t: 'Apresentação 1: Seminário do Projeto', n: '• Grupos vão apresentar escolha e análise inicial.\n• Tempo de exposição: 10 a 15 min por grupo.' },
+        '2026-10-01-9º AV': { t: 'Inglês: Presente Simples e Rotina Diária', n: '• Introdução ao texto "My daily routine".' },
+        '2026-10-06-9º AV': { t: 'Inglês: Vocabulário de Profissões', n: '• Profissões gerais e escolares.' },
+        '2026-10-08-9º AV': { t: 'Inglês: Vocabulário de Profissões 2', n: '• Profissões da Construção Civil.' },
+        '2026-10-13-9º AV': { t: 'Apresentação 2: Protótipos', n: '• Exposição da proposta de intervenção.' },
+        '2026-10-20-9º AV': { t: 'Resolução de Simulado em Sala', n: '• Treino prático do formato da avaliação.' },
+        '2026-10-22-9º AV': { t: 'Revisão Final: "O Dia de um Profissional"', n: '• União dos temas: Rotina + Profissões.' },
+        '2026-10-27-9º AV': { t: 'TESTE???', n: '' },
+        '2026-11-03-9º AV': { t: 'Ensaio Feira de Ciências', n: '' },
+        '2026-11-05-9º AV': { t: 'Culminância Feira de Ciências', n: '' },
+        '2026-09-29-1º AI': { t: 'Apresentação 1', n: '' },
+        '2026-09-29-1º BI': { t: 'Apresentação 1', n: '' },
+        '2026-10-06-1º AI': { t: 'Apresentação 2', n: '' },
+        '2026-10-06-1º BI': { t: 'Apresentação 2', n: '' },
+        '2026-10-13-1º AI': { t: 'Produção em sala de parágrafos de conclusão', n: '• Foco no uso de conectivos entre os períodos.' },
+        '2026-10-13-1º BI': { t: 'Produção em sala de parágrafos de conclusão', n: '• Foco no uso de conectivos.' },
+        '2026-10-20-1º AI': { t: 'Detalhamento', n: '• Tipos de detalhamento.' },
+        '2026-10-20-1º BI': { t: 'Detalhamento', n: '• Tipos de detalhamento.' },
+        '2026-10-27-1º AI': { t: 'Detalhamento 2', n: '• Produz na hora a partir de parágrafo-base.' },
+        '2026-10-27-1º BI': { t: 'Detalhamento 2', n: '• Produz na hora a partir de parágrafo-base.' },
+        '2026-11-03-1º AI': { t: 'Preparação para a Feira', n: '' },
+        '2026-11-03-1º BI': { t: 'Preparação para a Feira', n: '' },
+        '2026-10-01-2º AM': { t: 'Discussão de tema para produção', n: '• Revisão geral das estruturas.' },
+        '2026-10-01-2º BM': { t: 'Discussão de tema para produção', n: '• Revisão geral das estruturas.' },
+        '2026-10-08-2º AM': { t: 'Apresentação 1', n: '• Tese central, Argumentos 1 e 2.' },
+        '2026-10-08-2º BM': { t: 'Apresentação 1', n: '• Tese central, Argumentos 1 e 2.' },
+        '2026-10-22-2º AM': { t: 'Apresentação 2', n: '• Parágrafos de introdução restantes.' },
+        '2026-10-22-2º BM': { t: 'Apresentação 2', n: '• Parágrafos de introdução restantes.' },
+        '2026-10-29-2º AM': { t: 'Preparação Feira', n: '' },
+        '2026-10-29-2º BM': { t: 'Preparação Feira', n: '' },
+        '2026-11-05-2º AM': { t: 'Feira de Ciências', n: '' },
+        '2026-11-05-2º BM': { t: 'Feira de Ciências', n: '' }
+    };
+
     function getRange(start, end, title, type = 'normal') {
         let dates = [];
         let curr = new Date(start + 'T12:00:00');
@@ -109,56 +204,123 @@
     }
 
     const manualEvents = [
-        ...getRange('2026-09-01', '2026-09-11', 'Regime de Progressão Parcial (RPP)', 'atencao'),
-        { date: '2026-09-07', title: 'Independência do Brasil (Feriado)', type: 'feriado', turma: 'GERAL' },
+        ...getRange('2026-09-01', '2026-09-11', 'Regime de Progressão Parcial', 'atencao'),
+        { date: '2026-09-07', title: 'Independência do Brasil', type: 'feriado', turma: 'GERAL' },
         { date: '2026-09-19', title: 'Sábado Letivo 📝', type: 'aula', turma: 'GERAL' },
         ...getRange('2026-09-29', '2026-10-01', 'Avaliação Plurall', 'atencao'),
-        { date: '2026-10-12', title: 'N. Sra. de Aparecida (Feriado)', type: 'feriado', turma: 'GERAL' },
-        { date: '2026-10-15', title: 'Dia do Professor (Feriado)', type: 'feriado', turma: 'GERAL' },
+        { date: '2026-10-12', title: 'N. Sra. de Aparecida', type: 'feriado', turma: 'GERAL' },
+        { date: '2026-10-15', title: 'Dia do Professor', type: 'feriado', turma: 'GERAL' },
         { date: '2026-10-17', title: 'Sábado Letivo 📝', type: 'aula', turma: 'GERAL' },
-        { date: '2026-10-28', title: 'Dia do Servidor Público (Feriado)', type: 'feriado', turma: 'GERAL' },
-        { date: '2026-11-02', title: 'Dia de Finados (Feriado)', type: 'feriado', turma: 'GERAL' },
+        { date: '2026-10-28', title: 'Dia do Servidor Público', type: 'feriado', turma: 'GERAL' },
+        { date: '2026-11-02', title: 'Dia de Finados', type: 'feriado', turma: 'GERAL' },
         { date: '2026-11-05', title: 'Culminância do Projeto', type: 'destaque', turma: 'GERAL' },
         ...getRange('2026-11-09', '2026-11-19', 'Prova Sabe', 'atencao'),
-        { date: '2026-11-15', title: 'Proclamação da República (Feriado)', type: 'feriado', turma: 'GERAL' },
+        { date: '2026-11-15', title: 'Proclamação da República', type: 'feriado', turma: 'GERAL' },
         ...getRange('2026-11-16', '2026-11-27', 'Renovação de Matrícula', 'normal'),
-        { date: '2026-11-20', title: 'Dia da Consciência Negra (Feriado)', type: 'feriado', turma: 'GERAL' },
-        { date: '2026-12-01', title: 'Simulado Humanas (7h30 / 13h30)', type: 'atencao', turma: 'GERAL' },
-        { date: '2026-12-02', title: 'Simulado Linguagens (7h30 / 13h30)', type: 'atencao', turma: 'GERAL' },
-        { date: '2026-12-03', title: 'Simulado Natureza/Mat (7h30 / 13h30)', type: 'atencao', turma: 'GERAL' },
+        { date: '2026-11-20', title: 'Consciência Negra', type: 'feriado', turma: 'GERAL' },
         { date: '2026-12-04', title: 'Formatura 🎓', type: 'destaque', turma: 'GERAL' },
-        ...getRange('2026-12-10', '2026-12-11', 'RECUPERAÇÃO (Sala de Projeto)', 'atencao'),
-        ...getRange('2026-12-14', '2026-12-15', 'CONSELHO DE CLASSE', 'atencao'),
-        { date: '2026-12-16', title: 'Fim da III Unidade 🎉', type: 'destaque', turma: 'GERAL' },
-        { date: '2026-12-22', title: 'ENTREGA DO BOLETIM', type: 'destaque', turma: 'GERAL' }
+        { date: '2026-12-16', title: 'Fim da III Unidade 🎉', type: 'destaque', turma: 'GERAL' }
     ];
 
     let schedule = [];
     let completed = JSON.parse(localStorage.getItem('sat_done')) || [];
-    let notes = JSON.parse(localStorage.getItem('sat_notes')) || {};
-    let currentMonth = new Date().getMonth();
+    let notes = JSON.parse(localStorage.getItem('sat_notes')) || {}; 
+    let currentMonth = new Date().getMonth() < 8 ? 8 : new Date().getMonth();
     let selectedDate = new Date().toISOString().split('T')[0];
     let noteTargetId = null;
+    
+    // Novas variáveis de Controle (Visualização e Animação)
+    let viewMode = 'month'; // 'month' ou 'week'
+    let animClass = 'fade-in';
+    let touchStartX = 0;
+    let touchEndX = 0;
 
     function buildSchedule() {
         const start = new Date(2026, 7, 31);
         const end = new Date(2026, 11, 23);
         let curr = new Date(start);
+        
         while(curr <= end) {
             const dStr = curr.toISOString().split('T')[0];
             const dow = curr.getDay();
-            const feriadosDoDia = manualEvents.filter(e => e.date === dStr);
             
-            if(feriadosDoDia.length > 0) {
-                feriadosDoDia.forEach(f => schedule.push(f));
-            }
+            const globEvents = manualEvents.filter(e => e.date === dStr);
+            globEvents.forEach((f, i) => schedule.push({ ...f, id: `${dStr}-GERAL-${i}` }));
             
             if(weeklyPattern[dow]) {
                 weeklyPattern[dow].forEach(t => {
-                    schedule.push({ date: dStr, turma: t, title: 'Aula Regular', type: 'aula' });
+                    const dictKey = `${dStr}-${t}`;
+                    const customData = predefinedData[dictKey];
+                    schedule.push({ 
+                        id: dictKey,
+                        date: dStr, 
+                        turma: t, 
+                        title: customData ? customData.t : 'Aula Regular', 
+                        type: 'aula',
+                        defaultNote: customData ? customData.n : ''
+                    });
                 });
             }
             curr.setDate(curr.getDate() + 1);
+        }
+    }
+
+    // Controle de View (Mês/Semana)
+    function setViewMode(mode) {
+        viewMode = mode;
+        document.getElementById('btnWeek').className = `flex-1 text-xs font-bold py-2 rounded-lg transition-all ${mode === 'week' ? 'text-white bg-slate-700 shadow' : 'text-slate-400'}`;
+        document.getElementById('btnMonth').className = `flex-1 text-xs font-bold py-2 rounded-lg transition-all ${mode === 'month' ? 'text-white bg-slate-700 shadow' : 'text-slate-400'}`;
+        document.getElementById('swipeHintLabel').innerText = mode === 'month' ? 'o mês' : 'a semana';
+        
+        animClass = 'fade-in';
+        updateUI();
+    }
+
+    // Gestos de Swipe
+    function handleTouchStart(e) { touchStartX = e.changedTouches[0].screenX; }
+    function handleTouchEnd(e) { 
+        touchEndX = e.changedTouches[0].screenX;
+        if(touchEndX < touchStartX - 50) navigateNext(); // Arrasta pra esquerda -> Avança
+        if(touchEndX > touchStartX + 50) navigatePrev(); // Arrasta pra direita -> Volta
+    }
+
+    function navigateNext() {
+        if(viewMode === 'month') {
+            if(currentMonth < 11) {
+                currentMonth++;
+                selectedDate = `2026-${(currentMonth+1).toString().padStart(2,'0')}-01`;
+                animClass = 'slide-left-enter';
+                updateUI();
+            }
+        } else {
+            let d = new Date(selectedDate + 'T12:00:00');
+            d.setDate(d.getDate() + 7);
+            if(d.getFullYear() === 2026 && d.getMonth() <= 11) {
+                selectedDate = d.toISOString().split('T')[0];
+                currentMonth = d.getMonth();
+                animClass = 'slide-left-enter';
+                updateUI();
+            }
+        }
+    }
+
+    function navigatePrev() {
+        if(viewMode === 'month') {
+            if(currentMonth > 8) {
+                currentMonth--;
+                selectedDate = `2026-${(currentMonth+1).toString().padStart(2,'0')}-01`;
+                animClass = 'slide-right-enter';
+                updateUI();
+            }
+        } else {
+            let d = new Date(selectedDate + 'T12:00:00');
+            d.setDate(d.getDate() - 7);
+            if(d.getFullYear() === 2026 && d.getMonth() >= 8) {
+                selectedDate = d.toISOString().split('T')[0];
+                currentMonth = d.getMonth();
+                animClass = 'slide-right-enter';
+                updateUI();
+            }
         }
     }
 
@@ -171,32 +333,50 @@
     function renderMonths() {
         const months = [{n:'Set',i:8},{n:'Out',i:9},{n:'Nov',i:10},{n:'Dez',i:11}];
         document.getElementById('monthTabs').innerHTML = months.map(m => `
-            <button onclick="currentMonth=${m.i};updateUI()" class="px-5 py-2 rounded-xl font-bold text-xs transition-all
-                ${currentMonth === m.i ? 'bg-satelite-dark text-white' : 'bg-slate-100 text-slate-400'}">${m.n}</button>
+            <button onclick="currentMonth=${m.i}; viewMode='month'; setViewMode('month');" class="px-5 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap
+                ${currentMonth === m.i ? 'bg-satelite-dark text-white shadow-md' : 'bg-slate-100 text-slate-400'}">${m.n}</button>
         `).join('');
     }
 
     function renderCalendar() {
         const grid = document.getElementById('calendarGrid');
+        grid.className = `calendar-grid px-1 ${animClass}`;
         grid.innerHTML = '';
-        const first = new Date(2026, currentMonth, 1).getDay();
-        const total = new Date(2026, currentMonth + 1, 0).getDate();
+        
+        setTimeout(() => grid.classList.remove('slide-left-enter', 'slide-right-enter', 'fade-in'), 300);
+
         const filter = document.getElementById('turmaFilter').value;
 
-        for(let i=0; i<first; i++) grid.appendChild(document.createElement('div'));
+        if (viewMode === 'month') {
+            const first = new Date(2026, currentMonth, 1).getDay();
+            const total = new Date(2026, currentMonth + 1, 0).getDate();
+            for(let i=0; i<first; i++) grid.appendChild(document.createElement('div'));
 
-        for(let d=1; d<=total; d++) {
-            const dStr = `2026-${(currentMonth+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
-            const hasEv = schedule.some(s => s.date === dStr && (filter === 'TODAS' || s.turma === filter || s.turma === 'GERAL'));
-            const isSel = dStr === selectedDate;
-
-            const el = document.createElement('div');
-            el.className = `h-10 flex flex-col items-center justify-center rounded-xl cursor-pointer text-xs font-bold
-                ${isSel ? 'bg-satelite-primary text-white scale-110 shadow-md' : 'text-slate-600 hover:bg-slate-50'}`;
-            el.onclick = () => { selectedDate = dStr; updateUI(); };
-            el.innerHTML = `<span>${d}</span>${hasEv ? '<div class="w-1 h-1 bg-current opacity-50 rounded-full mt-0.5"></div>' : ''}`;
-            grid.appendChild(el);
+            for(let d=1; d<=total; d++) {
+                const dStr = `2026-${(currentMonth+1).toString().padStart(2,'0')}-${d.toString().padStart(2,'0')}`;
+                grid.appendChild(createDayCell(dStr, d, filter));
+            }
+        } else {
+            let curr = new Date(selectedDate + 'T12:00:00');
+            curr.setDate(curr.getDate() - curr.getDay()); // Volta pro Domingo da semana
+            for(let i=0; i<7; i++) {
+                const dStr = curr.toISOString().split('T')[0];
+                grid.appendChild(createDayCell(dStr, curr.getDate(), filter));
+                curr.setDate(curr.getDate() + 1);
+            }
         }
+    }
+
+    function createDayCell(dStr, dayNum, filter) {
+        const hasEv = schedule.some(s => s.date === dStr && (filter === 'TODAS' || s.turma === filter || s.turma === 'GERAL'));
+        const isSel = dStr === selectedDate;
+        
+        const el = document.createElement('div');
+        el.className = `h-10 flex flex-col items-center justify-center rounded-xl cursor-pointer text-xs font-bold transition-all
+            ${isSel ? 'bg-satelite-primary text-white scale-110 shadow-md' : 'text-slate-600 hover:bg-slate-100'}`;
+        el.onclick = () => { selectedDate = dStr; animClass='fade-in'; updateUI(); };
+        el.innerHTML = `<span>${dayNum}</span>${hasEv ? '<div class="w-1 h-1 bg-current opacity-50 rounded-full mt-0.5"></div>' : ''}`;
+        return el;
     }
 
     function renderList() {
@@ -210,29 +390,29 @@
         const container = document.getElementById('eventList');
         container.innerHTML = events.length ? '' : `<div class="py-10 text-center text-slate-300 text-sm">Sem eventos programados.</div>`;
 
-        events.forEach((ev, idx) => {
-            const id = `${ev.date}-${ev.turma}-${idx}`;
-            const isDone = completed.includes(id);
-            const note = notes[id] || '';
+        events.forEach((ev) => {
+            const isDone = completed.includes(ev.id);
+            const userNote = notes[ev.id];
+            const displayedNote = userNote !== undefined ? userNote : (ev.defaultNote || '');
+            const formatedNote = displayedNote.replace(/\n/g, '<br>');
 
             const card = document.createElement('div');
-            card.className = `bg-white p-4 rounded-2xl border border-slate-100 shadow-sm fade-in ${isDone ? 'opacity-50' : ''}`;
+            card.className = `bg-white p-5 rounded-2xl border border-slate-100 shadow-sm fade-in transition-opacity ${isDone ? 'opacity-50' : ''}`;
             card.innerHTML = `
                 <div class="flex justify-between items-start mb-2">
-                    <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-500">${ev.turma}</span>
-                    <button onclick="toggleDone('${id}')" class="text-lg ${isDone ? 'text-green-500' : 'text-slate-200'}">
+                    <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded ${ev.type === 'feriado' ? 'bg-red-50 text-red-500' : 'bg-slate-100 text-slate-500'}">${ev.turma}</span>
+                    <button onclick="toggleDone('${ev.id}')" class="text-lg transition-colors ${isDone ? 'text-green-500' : 'text-slate-200'}">
                         <i class="fa-solid fa-circle-check"></i>
                     </button>
                 </div>
                 <h3 class="font-bold text-slate-800 text-sm leading-tight">${ev.title}</h3>
                 
-                <!-- NOTA EXIBIDA PEQUENA NO CARD -->
-                ${note ? `<div class="mt-2 p-2 bg-yellow-50 border-l-2 border-yellow-400 text-[10px] text-yellow-700 italic">
-                    <i class="fa-solid fa-note-sticky mr-1"></i> ${note}
+                ${displayedNote ? `<div class="mt-3 p-3 bg-amber-50/50 border-l-[3px] border-amber-400 rounded-r-lg text-xs font-medium text-amber-900/80 leading-relaxed">
+                    ${formatedNote}
                 </div>` : ''}
 
-                <button onclick="openNote('${id}')" class="mt-3 text-[9px] font-bold text-blue-500 uppercase tracking-tighter">
-                    <i class="fa-solid fa-pen"></i> ${note ? 'Editar nota' : 'Add nota'}
+                <button onclick="openNote('${ev.id}')" class="mt-4 text-[10px] font-bold text-satelite-primary uppercase tracking-tighter hover:text-blue-700">
+                    <i class="fa-solid fa-pen mr-1"></i> ${displayedNote ? 'Editar anotação' : 'Adicionar anotação'}
                 </button>
             `;
             container.appendChild(card);
@@ -247,30 +427,35 @@
 
     function openNote(id) {
         noteTargetId = id;
-        document.getElementById('noteInput').value = notes[id] || '';
+        const ev = schedule.find(s => s.id === id);
+        document.getElementById('noteInput').value = notes[id] !== undefined ? notes[id] : (ev.defaultNote || '');
         document.getElementById('noteModal').classList.remove('hidden');
     }
 
     function saveNote() {
-        const val = document.getElementById('noteInput').value.trim();
-        if(val) notes[noteTargetId] = val; else delete notes[noteTargetId];
+        notes[noteTargetId] = document.getElementById('noteInput').value;
         localStorage.setItem('sat_notes', JSON.stringify(notes));
-        closeNote();
-        updateUI();
+        closeNote(); updateUI();
     }
 
     function closeNote() { document.getElementById('noteModal').classList.add('hidden'); }
+    
     function goToToday() {
         const t = new Date().toISOString().split('T')[0];
-        selectedDate = t; currentMonth = new Date().getMonth(); updateUI();
+        selectedDate = t; 
+        const m = new Date().getMonth();
+        currentMonth = (m >= 8 && m <= 11) ? m : 8;
+        animClass = 'fade-in';
+        updateUI();
     }
+    
     function exportData() {
         const blob = new Blob([JSON.stringify({completed, notes})], {type:'application/json'});
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
         a.download = 'backup_satelite.json'; a.click();
     }
 
-    window.onload = () => { buildSchedule(); updateUI(); };
+    window.onload = () => { buildSchedule(); setViewMode('week'); }; // Inicia na visão semanal padrão
 </script>
 </body>
 </html>
